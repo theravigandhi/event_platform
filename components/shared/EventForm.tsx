@@ -26,6 +26,7 @@ import { Textarea } from "../ui/textarea";
 import { FileUploader } from "./FileUploader";
 import { useRouter } from "next/navigation";
 import { createEvent, updateEvent } from "@/lib/actions/event.actions";
+import { IEvent } from "@/lib/database/models/event.model";
 
 import { useState } from "react";
 import Image from "next/image";
@@ -39,19 +40,28 @@ const formSchema = z.object({
 type EventFormProps = {
   userId: string;
   type: "Create" | "Update";
+  event?: IEvent;
+  eventId?: string;
 };
 
-const EventForm = ({ userId, type }: EventFormProps) => {
+const EventForm = ({ userId, type, event, eventId }: EventFormProps) => {
   const [files, setFiles] = useState<File[]>([]);
 
-  const initialValue = eventDefaultValues;
+  const initialValues =
+    event && type === "Update"
+      ? {
+          ...event,
+          startDateTime: new Date(event.startDateTime),
+          endDateTime: new Date(event.endDateTime),
+        }
+      : eventDefaultValues;
   const router = useRouter();
 
   const { startUpload } = useUploadThing("imageUploader");
 
   const form = useForm<z.infer<typeof eventFormSchema>>({
     resolver: zodResolver(eventFormSchema),
-    defaultValues: initialValue,
+    defaultValues: initialValues,
   });
 
   async function onSubmit(values: z.infer<typeof eventFormSchema>) {
@@ -83,27 +93,27 @@ const EventForm = ({ userId, type }: EventFormProps) => {
       }
     }
 
-    // if (type === "Update") {
-    //   if (!eventId) {
-    //     router.back();
-    //     return;
-    //   }
+    if (type === "Update") {
+      if (!eventId) {
+        router.back();
+        return;
+      }
 
-    //   try {
-    //     const updatedEvent = await updateEvent({
-    //       userId,
-    //       event: { ...values, imageUrl: uploadedImageUrl, _id: eventId },
-    //       path: `/events/${eventId}`,
-    //     });
+      try {
+        const updatedEvent = await updateEvent({
+          userId,
+          event: { ...values, imageUrl: uploadedImageUrl, _id: eventId },
+          path: `/events/${eventId}`,
+        });
 
-    //     if (updatedEvent) {
-    //       form.reset();
-    //       router.push(`/events/${updatedEvent._id}`);
-    //     }
-    //   } catch (error) {
-    //     console.log(error);
-    //   }
-    // }
+        if (updatedEvent) {
+          form.reset();
+          router.push(`/events/${updatedEvent._id}`);
+        }
+      } catch (error) {
+        console.log(error);
+      }
+    }
   }
   return (
     <Form {...form}>
